@@ -29,7 +29,8 @@
     "myPosts": "Postingan Saya",
     "write": "Tulis",
     "writePost": "Tulis Postingan",
-    "close": "Tutup"
+    "close": "Tutup",
+    "submitProject": "Kirim Project"
   },
   "settings": {
     "language": "Bahasa",

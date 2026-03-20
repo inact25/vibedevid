@@ -1,6 +1,7 @@
 'use client'
 
-import { PenSquare } from 'lucide-react'
+import { Upload01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ interface FloatingWriteButtonProps {
 }
 
 /**
- * Floating Action Button (FAB) for writing blog posts.
+ * Floating Action Button (FAB) for submitting projects.
  * Only visible for logged-in users.
  * Positioned at bottom-right of the screen.
  */
@@ -34,14 +35,17 @@ export function FloatingWriteButton({ isLoggedIn }: FloatingWriteButtonProps) {
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
-      <Link href="/blog/editor">
+      <Link href="/project/submit">
         <Button
           size="lg"
           className="h-14 w-14 rounded-full shadow-lg transition-shadow hover:shadow-xl"
-          aria-label="Write a post"
+          aria-label="Submit a project"
         >
-          <PenSquare className="h-6 w-6" />
-          <span className="sr-only">Write a post</span>
+          <HugeiconsIcon
+            icon={Upload01Icon}
+            size={24}
+          />
+          <span className="sr-only">Submit a project</span>
         </Button>
       </Link>
     </motion.div>

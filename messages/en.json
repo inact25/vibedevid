@@ -29,7 +29,8 @@
     "myPosts": "My Posts",
     "write": "Write",
     "writePost": "Write a Post",
-    "close": "Close"
+    "close": "Close",
+    "submitProject": "Submit Project"
   },
   "settings": {
     "language": "Language",
