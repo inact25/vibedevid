@@ -1,8 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { normalizeProjectWebsiteUrl } from '../../project-url'
+import { createAdminClient } from '../../supabase/admin'
+import { createClient } from '../../supabase/server'
 
 // IMPORTANT-5: Role constants for maintainability
 const ROLES = {
@@ -208,6 +209,23 @@ export async function adminUpdateProject(
     await checkAdminAccess()
 
     const supabase = createAdminClient()
+    const normalizedWebsiteUrl =
+      updates.website_url === undefined
+        ? undefined
+        : updates.website_url === null
+          ? null
+          : updates.website_url.trim().length === 0
+            ? null
+            : normalizeProjectWebsiteUrl(updates.website_url)
+
+    if (
+      updates.website_url !== undefined &&
+      updates.website_url !== null &&
+      updates.website_url.trim().length > 0 &&
+      !normalizedWebsiteUrl
+    ) {
+      return { success: false, error: 'Enter a valid website URL' }
+    }
 
     const { data: updatedRows, error } = await supabase
       .from('projects')
@@ -215,7 +233,7 @@ export async function adminUpdateProject(
         title: updates.title,
         description: updates.description,
         category: updates.category,
-        website_url: updates.website_url,
+        website_url: normalizedWebsiteUrl,
         image_url: updates.image_url,
         tagline: updates.tagline,
         tags: updates.tags,

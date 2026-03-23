@@ -20,3 +20,18 @@
 - To convert a monolithic form into a stepper while maintaining a single `FormData` submission, all fields must be fully controlled via React state (e.g. `title`, `description`, `category`). This ensures that conditionally rendered (or hidden) inputs still have their values accurately serialized on final submit.
 - Creating a unified validation function (`validateCurrentStep`) hooked into the Next action helps block progression and surfaces immediate field feedback before reaching the final submission step.
 - An explicit absolute/fixed mobile footer provides a safe sticky area for CTA buttons without interfering with native keyboard rendering, switching seamlessly to absolute within the Card bounds for desktop layouts.
+
+### Stepper UI Strict Mode Validation
+When elements from hidden steps are kept in the DOM (e.g., hidden via CSS `hidden` class), Playwright locators using `getByText` can encounter strict mode violations if multiple steps contain matching text (like select input values and summary step badges). We fixed this by navigating to the exact step where the unique element is rendered and using more specific locators, such as tag names or `.serial` parallel mode for local auth.
+
+### Task 7: Basics-Step Guidance
+- Exporting Zod length constants (`MIN_TITLE_LENGTH`, `MAX_DESCRIPTION_LENGTH`, etc.) from the server validation schema (`lib/actions/projects.ts`) and reusing them directly in the client (`SubmitProjectForm`) perfectly syncs frontend step validation without duplicating magic numbers.
+- By coupling React state length checks to Next UI components, we can seamlessly add live character limits (`length / maxLength`) and dynamic Tailwind classes (`text-red-500`, `text-amber-500`) to enforce UX rules and provide immediate visual feedback.
+- Vitest tests with mocked Supabase server instances fail when aliased paths (e.g., `@/lib/supabase/server`) are used in deep dependencies (like `uploadthing.ts`). Changing these imports to relative paths ensures the test environment resolves them correctly without complex alias configs.
+- Task 7 (Retry): When implementing live length constraints in React form helpers, account for the empty field state (`length === 0`) distinctly from the active-typing state to ensure required fields do not display misleading "success" validation before the user even starts typing.
+
+### Task 8: Upload/Import State Management Fix
+- In React components handling file uploads that rely on a backend to clear provisional data, the UI state (`uploadedImageUrl` and `uploadedImageKey`) must be cleared synchronously and unconditionally during the remove action even if the backend cleanup API fails. This ensures the user is never permanently blocked from replacing an image just because the temporary upload key failed to delete on the server.
+
+### Task 8 Cleanup
+- Removed temporary `console.warn`, `console.error`, and `console.log` statements introduced during test debugging. Silent catch blocks or `.catch(() => {})` handle expected missing promises (like optional Supabase auth responses during mock execution) cleanly.

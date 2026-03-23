@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { type AdminProject, adminUpdateProject } from '@/lib/actions/admin/projects'
+import { isValidProjectWebsiteUrl, normalizeProjectWebsiteUrl } from '@/lib/project-url'
 
 interface ProjectEditDialogProps {
   project: AdminProject
@@ -104,11 +105,27 @@ export function ProjectEditDialog({ project, open, onOpenChange }: ProjectEditDi
             <Label htmlFor="website_url">Website URL</Label>
             <Input
               id="website_url"
-              type="url"
+              type="text"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={formData.website_url}
               onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
-              placeholder="https://example.com"
+              placeholder="your-project.com"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              {!formData.website_url.trim() ? (
+                'Optional. You can paste a full URL or just type google.com and we’ll save it as https://google.com.'
+              ) : normalizeProjectWebsiteUrl(formData.website_url) &&
+                normalizeProjectWebsiteUrl(formData.website_url) !== formData.website_url.trim() ? (
+                `Will be saved as ${normalizeProjectWebsiteUrl(formData.website_url)}`
+              ) : isValidProjectWebsiteUrl(formData.website_url) ? (
+                'Looking good! ✨'
+              ) : (
+                <span className="text-destructive">Enter a valid website URL or leave it empty</span>
+              )}
+            </p>
           </div>
 
           <div className="space-y-2">

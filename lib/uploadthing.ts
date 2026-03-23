@@ -1,7 +1,21 @@
 import { createUploadthing, type FileRouter } from 'uploadthing/next'
-import { createClient } from '@/lib/supabase/server'
+import { UTApi } from 'uploadthing/server'
+import { createClient } from './supabase/server'
 
 const f = createUploadthing()
+const utapi = new UTApi()
+
+export type UploadedFileMetadata = {
+  key: string
+  name: string
+  uploadedBy: string
+  url: string
+}
+
+export interface UploadCleanupResult {
+  success: boolean
+  deletedCount: number
+}
 
 async function requireAuthenticatedUserId() {
   const supabase = await createClient()
@@ -23,61 +37,56 @@ function getUfsUrl(file: unknown): string | undefined {
   return typeof ufsUrl === 'string' ? ufsUrl : undefined
 }
 
+export async function deleteUploadthingFiles(fileKeys: string | string[]): Promise<UploadCleanupResult> {
+  const normalizedKeys = (Array.isArray(fileKeys) ? fileKeys : [fileKeys]).map((key) => key.trim()).filter(Boolean)
+
+  if (normalizedKeys.length === 0) {
+    return {
+      success: true,
+      deletedCount: 0,
+    }
+  }
+
+  return utapi.deleteFiles(normalizedKeys)
+}
+
 export const ourFileRouter = {
   projectImageUploader: f({ image: { maxFileSize: '4MB', maxFileCount: 1 } })
     .middleware(async () => {
-      console.log('[UploadThing] middleware called (projectImageUploader)')
-
-      try {
-        const userId = await requireAuthenticatedUserId()
-        console.log('[UploadThing] authenticated user:', userId)
-        return { userId }
-      } catch (error) {
-        console.error('[UploadThing] middleware error:', error)
-        throw error
-      }
+      const userId = await requireAuthenticatedUserId()
+      return { userId }
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log('[UploadThing] upload complete (projectImageUploader) for userId:', metadata.userId)
-
       const ufsUrl = getUfsUrl(file)
       const url = ufsUrl ?? file.url
 
-      return {
+      const uploadedFile = {
         uploadedBy: metadata.userId,
         url,
-        ufsUrl,
         key: file.key,
         name: file.name,
-      }
+      } satisfies UploadedFileMetadata
+
+      return uploadedFile
     }),
 
   blogImageUploader: f({ image: { maxFileSize: '4MB', maxFileCount: 1 } })
     .middleware(async () => {
-      console.log('[UploadThing] middleware called (blogImageUploader)')
-
-      try {
-        const userId = await requireAuthenticatedUserId()
-        console.log('[UploadThing] authenticated user:', userId)
-        return { userId }
-      } catch (error) {
-        console.error('[UploadThing] middleware error:', error)
-        throw error
-      }
+      const userId = await requireAuthenticatedUserId()
+      return { userId }
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log('[UploadThing] upload complete (blogImageUploader) for userId:', metadata.userId)
-
       const ufsUrl = getUfsUrl(file)
       const url = ufsUrl ?? file.url
 
-      return {
+      const uploadedFile = {
         uploadedBy: metadata.userId,
         url,
-        ufsUrl,
         key: file.key,
         name: file.name,
-      }
+      } satisfies UploadedFileMetadata
+
+      return uploadedFile
     }),
 } satisfies FileRouter
 

@@ -492,7 +492,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 - [RLS Policies](docs/security/RLS_POLICIES.md)
 - [Auth Dashboard Settings](docs/security/AUTH_DASHBOARD_SETTINGS.md)
 - [WARP.md](WARP.md) - Living knowledge base
-- [AGENTS.md](AGENTS.md) - Project guidelines
+- [AGENTS.md](../../AGENTS.md) - Project guidelines
 
 ### External Resources
 - [Supabase RLS Documentation](https://supabase.com/docs/guides/database/postgres/row-level-security)

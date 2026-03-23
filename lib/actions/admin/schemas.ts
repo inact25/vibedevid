@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import { normalizeProjectWebsiteUrl } from '../../project-url'
 
 // Role constants for validation
 export const ROLES = {
@@ -88,11 +89,36 @@ export const ReportFiltersSchema = z.object({
 })
 
 // Project update validation
+function normalizeOptionalWebsiteUrl(
+  value: string | null | undefined,
+  ctx: z.RefinementCtx,
+): string | null | undefined | typeof z.NEVER {
+  if (value === undefined || value === null) {
+    return value
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  const normalized = normalizeProjectWebsiteUrl(trimmed)
+  if (!normalized) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Enter a valid website URL',
+    })
+    return z.NEVER
+  }
+
+  return normalized
+}
+
 export const ProjectUpdateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(5000).optional(),
   category: z.string().optional(),
-  website_url: z.string().url().optional().nullable(),
+  website_url: z.union([z.string(), z.null()]).optional().transform(normalizeOptionalWebsiteUrl),
   image_url: z.string().url().optional().nullable(),
   tagline: z.string().max(200).optional().nullable(),
   tags: z.array(z.string()).optional(),

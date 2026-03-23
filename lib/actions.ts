@@ -6,7 +6,8 @@ import { redirect } from 'next/navigation'
 import { getCategoryDisplayName } from './categories'
 import { getSupabaseConfig } from './env-config'
 import { fetchFavicon } from './favicon-utils'
-import { ensureUniqueSlug, getProjectIdBySlug, slugifyTitle } from './slug'
+import { normalizeProjectWebsiteUrl } from './project-url'
+import { getProjectIdBySlug } from './slug'
 import { createAdminClient } from './supabase/admin'
 
 function toLoggableError(error: unknown): string | Record<string, string | number> {
@@ -68,7 +69,9 @@ async function createClient() {
       },
       setAll(cookiesToSet) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
         } catch {
           // The `setAll` method was called from a Server Component.
           // This can be ignored if you have middleware refreshing
@@ -762,127 +765,6 @@ export async function getBatchLikeStatus(projectIds: string[]) {
   }
 }
 
-export async function submitProject(formData: FormData, userId: string) {
-  const supabase = await createClient()
-
-  try {
-    const title = formData.get('title') as string
-    const description = formData.get('description') as string
-    const category = formData.get('category') as string
-    const websiteUrl = formData.get('website_url') as string
-    const imageUrl = formData.get('image_url') as string
-    const tagline = formData.get('tagline') as string
-    const tagsString = formData.get('tags') as string
-
-    // Parse tags from JSON string to array
-    let tags: string[] = []
-    if (tagsString) {
-      try {
-        tags = JSON.parse(tagsString)
-      } catch (e) {
-        console.warn('Failed to parse tags, using empty array', e)
-      }
-    }
-
-    // Auto-fetch favicon if website URL is provided
-    let faviconUrl = '/default-favicon.svg'
-    if (websiteUrl?.trim()) {
-      try {
-        faviconUrl = await fetchFavicon(websiteUrl.trim())
-      } catch (e) {
-        console.warn('Failed to fetch favicon, using default', e)
-      }
-    }
-
-    if (!title || !description || !category) {
-      return {
-        success: false,
-        error: 'Title, description, and category are required',
-      }
-    }
-
-    // Generate slug from title
-    const baseSlug = slugifyTitle(title.trim())
-    const slug = await ensureUniqueSlug(baseSlug)
-
-    console.log('[Submit Project] Generated slug:', slug, 'from title:', title.trim())
-
-    // Query public.users table to get the correct public.users.id for the authenticated user
-    const { data: profile } = await supabase.from('users').select('id').eq('id', userId).single()
-
-    const publicUserId = profile?.id || userId
-
-    console.log('[Submit Project] Auth userId:', userId)
-    console.log('[Submit Project] Public users ID:', publicUserId)
-    console.log('[Submit Project] Using userId for project:', publicUserId)
-
-    const { data: project, error } = await supabase
-      .from('projects')
-      .insert({
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        website_url: websiteUrl?.trim() || null,
-        image_url: imageUrl?.trim() || null,
-        tagline: tagline?.trim() || null,
-        favicon_url: faviconUrl,
-        author_id: publicUserId,
-        tags: tags,
-        slug: slug, // Add slug column
-      })
-      .select('slug')
-      .single()
-
-    if (error) {
-      console.error('Submit project error:', error)
-
-      // Handle unique constraint violation (collision during race condition)
-      if (error.code === '23505' && error.message?.includes('slug')) {
-        console.log('[Submit Project] Slug collision detected, retrying...')
-
-        // Retry with incremented slug
-        try {
-          const retrySlug = await ensureUniqueSlug(baseSlug)
-          const { data: retryProject, error: retryError } = await supabase
-            .from('projects')
-            .insert({
-              title: title.trim(),
-              description: description.trim(),
-              category,
-              website_url: websiteUrl?.trim() || null,
-              image_url: imageUrl?.trim() || null,
-              tagline: tagline?.trim() || null,
-              favicon_url: faviconUrl,
-              author_id: userId,
-              tags: tags,
-              slug: retrySlug,
-            })
-            .select('slug')
-            .single()
-
-          if (retryError) {
-            console.error('Submit project retry error:', retryError)
-            return { success: false, error: retryError.message }
-          }
-
-          return { success: true, slug: retryProject.slug }
-        } catch (retryErr) {
-          console.error('Submit project retry failed:', retryErr)
-          return {
-            success: false,
-            error: 'An unexpected error occurred',
-          }
-        }
-      }
-    }
-
-    return { success: true, slug: project?.slug || slug }
-  } catch (error) {
-    console.error('Submit project error:', error)
-    return { success: false, error: 'An unexpected error occurred' }
-  }
-}
-
 export async function editProject(projectSlug: string, formData: FormData) {
   if (!projectSlug || typeof projectSlug !== 'string' || projectSlug.trim() === '') {
     return { success: false, error: 'Project slug is required' }
@@ -927,6 +809,12 @@ export async function editProject(projectSlug: string, formData: FormData) {
     const imageUrl = formData.get('image_url') as string
     const tagline = formData.get('tagline') as string
     const tagsString = formData.get('tags') as string
+    const trimmedWebsiteUrl = websiteUrl?.trim() || ''
+    const normalizedWebsiteUrl = trimmedWebsiteUrl ? normalizeProjectWebsiteUrl(trimmedWebsiteUrl) : null
+
+    if (trimmedWebsiteUrl && !normalizedWebsiteUrl) {
+      return { success: false, error: 'Enter a valid website URL' }
+    }
 
     // Parse tags from JSON string to array
     let tags: string[] = []
@@ -940,9 +828,9 @@ export async function editProject(projectSlug: string, formData: FormData) {
 
     // Auto-fetch favicon if website URL changed
     let faviconUrl: string | undefined
-    if (websiteUrl?.trim()) {
+    if (normalizedWebsiteUrl) {
       try {
-        faviconUrl = await fetchFavicon(websiteUrl.trim())
+        faviconUrl = await fetchFavicon(normalizedWebsiteUrl)
       } catch (e) {
         console.warn('Failed to fetch favicon, keeping existing', e)
       }
@@ -962,7 +850,7 @@ export async function editProject(projectSlug: string, formData: FormData) {
         title: title.trim(),
         description: description.trim(),
         category,
-        website_url: websiteUrl?.trim() || null,
+        website_url: normalizedWebsiteUrl,
         image_url: imageUrl?.trim() || null,
         tagline: tagline?.trim() || null,
         ...(faviconUrl && { favicon_url: faviconUrl }),

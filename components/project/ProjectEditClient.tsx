@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { editProject } from '@/lib/actions'
 import type { Category } from '@/lib/categories'
 import { getFaviconUrl } from '@/lib/favicon-utils'
+import { isValidProjectWebsiteUrl, normalizeProjectWebsiteUrl } from '@/lib/project-url'
 
 const MAX_DESCRIPTION_LENGTH = 1600
 
@@ -275,7 +276,11 @@ export function ProjectEditClient({ project, categories, projectSlug, isOwner }:
                 <Label htmlFor="edit-website">Website URL</Label>
                 <Input
                   id="edit-website"
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={editWebsiteUrl}
                   onChange={(e) => {
                     const url = e.target.value
@@ -285,9 +290,21 @@ export function ProjectEditClient({ project, categories, projectSlug, isOwner }:
                       website_url: url,
                     })
                   }}
-                  placeholder="https://your-project.com"
+                  placeholder="your-project.com"
                   disabled={isSaving}
                 />
+                <p className="form-helper-text mt-1 text-xs text-muted-foreground">
+                  {!editWebsiteUrl.trim() ? (
+                    'Optional. You can paste a full URL or just type google.com and we’ll save it as https://google.com.'
+                  ) : normalizeProjectWebsiteUrl(editWebsiteUrl) &&
+                    normalizeProjectWebsiteUrl(editWebsiteUrl) !== editWebsiteUrl.trim() ? (
+                    `Will be saved as ${normalizeProjectWebsiteUrl(editWebsiteUrl)}`
+                  ) : isValidProjectWebsiteUrl(editWebsiteUrl) ? (
+                    'Looking good! ✨'
+                  ) : (
+                    <span className="text-destructive">Enter a valid website URL or leave it empty</span>
+                  )}
+                </p>
               </div>
 
               {/* Favicon URL */}
